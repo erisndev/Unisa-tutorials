@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FacultyAPI } from "../api/faculties";
 import { CourseAPI } from "../api/courses";
-import { findCourse, findFaculty, countModules, getYearCount } from "../lib/university";
+import {
+  findCourse,
+  findFaculty,
+  countModules,
+  getYearCount,
+} from "../lib/university";
 import {
   PageTransition,
   FadeIn,
@@ -67,7 +72,9 @@ export default function CourseDetailPage() {
     }
 
     fetchData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [facultyId, courseId]);
 
   if (loading) {
@@ -78,9 +85,6 @@ export default function CourseDetailPage() {
             <div className="card p-12 text-center max-w-lg mx-auto">
               <div className="text-4xl mb-4 animate-pulse">📚</div>
               <h1 className="text-2xl font-bold">Loading course...</h1>
-              <p className="mt-3 text-muted-foreground">
-                Fetching course details from the server.
-              </p>
             </div>
           </FadeIn>
         </div>
@@ -113,7 +117,8 @@ export default function CourseDetailPage() {
   const facultyKey = faculty._id || faculty.id;
   const courseKey = course._id || course.id;
   const courseTitle = course.title || course.name;
-  const courseDesc = course.overview || course.shortDescription || course.description || "";
+  const courseDesc =
+    course.overview || course.shortDescription || course.description || "";
 
   // Check if we have static year/semester structure or flat API modules
   const hasYearStructure = course.years && course.years.length > 0;
@@ -139,11 +144,17 @@ export default function CourseDetailPage() {
           <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <FadeInUp delay={0.1} className="max-w-2xl">
               <div className="flex items-center gap-2 mb-3">
-                <span className="badge-primary">{course.level || "Undergraduate"}</span>
+                <span className="badge-primary">
+                  {course.level || "Undergraduate"}
+                </span>
                 <span className="dot" />
-                <span className="text-xs text-muted-foreground">{course.duration || ""}</span>
+                <span className="text-xs text-muted-foreground">
+                  {course.duration || ""}
+                </span>
                 <span className="dot" />
-                <span className="text-xs text-muted-foreground">{faculty.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {faculty.name}
+                </span>
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                 {courseTitle}
@@ -183,7 +194,9 @@ export default function CourseDetailPage() {
               {/* Overview */}
               <FadeInUp delay={0.25}>
                 <div className="card p-6 lg:p-8">
-                  <h2 className="text-xl font-bold tracking-tight">Course overview</h2>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    Course overview
+                  </h2>
                   <p className="mt-4 text-muted-foreground leading-relaxed">
                     {courseDesc}
                   </p>
@@ -197,7 +210,10 @@ export default function CourseDetailPage() {
                     <h3 className="text-lg font-semibold">Learning outcomes</h3>
                     <ul className="mt-4 space-y-3">
                       {course.outcomes.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm text-muted-foreground">
+                        <li
+                          key={idx}
+                          className="flex items-start gap-3 text-sm text-muted-foreground"
+                        >
                           <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
                           <span className="leading-relaxed">{item}</span>
                         </li>
@@ -212,7 +228,9 @@ export default function CourseDetailPage() {
                 <FadeIn delay={0.15}>
                   <div className="card p-6 lg:p-8">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Modules by Year & Semester</h3>
+                      <h3 className="text-lg font-semibold">
+                        Modules by Year & Semester
+                      </h3>
                       <span className="badge">{totalModules} total</span>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -231,11 +249,17 @@ export default function CourseDetailPage() {
 
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                             {yr.semesters.map((sem) => (
-                              <div key={sem.semester} className="rounded-xl border bg-background p-4">
+                              <div
+                                key={sem.semester}
+                                className="rounded-xl border bg-background p-4"
+                              >
                                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                   Semester {sem.semester}
                                 </div>
-                                <StaggerContainer className="space-y-2" stagger={0.04}>
+                                <StaggerContainer
+                                  className="space-y-2"
+                                  stagger={0.04}
+                                >
                                   {sem.modules.map((m) => (
                                     <StaggerItem key={m.id}>
                                       <HoverCard>
@@ -243,7 +267,9 @@ export default function CourseDetailPage() {
                                           <span className="text-xs font-bold text-primary min-w-[70px]">
                                             {m.code}
                                           </span>
-                                          <span className="text-sm font-medium">{m.name}</span>
+                                          <span className="text-sm font-medium">
+                                            {m.name}
+                                          </span>
                                         </div>
                                       </HoverCard>
                                     </StaggerItem>
@@ -271,14 +297,21 @@ export default function CourseDetailPage() {
                       Select specific modules when booking a tutorial.
                     </p>
 
-                    <StaggerContainer className="mt-6 grid gap-3 sm:grid-cols-2" stagger={0.04}>
+                    <StaggerContainer
+                      className="mt-6 grid gap-3 sm:grid-cols-2"
+                      stagger={0.04}
+                    >
                       {modules.map((m) => (
                         <StaggerItem key={m._id}>
                           <HoverCard>
                             <div className="flex items-center gap-3 rounded-lg border-2 border-transparent bg-muted/30 px-3 py-2.5 hover:border-primary/20 transition-colors">
-                              <span className="text-sm font-medium">{m.title}</span>
+                              <span className="text-sm font-medium">
+                                {m.title}
+                              </span>
                               {m.isActive === false && (
-                                <span className="badge-muted text-[10px] ml-auto">Inactive</span>
+                                <span className="badge-muted text-[10px] ml-auto">
+                                  Inactive
+                                </span>
                               )}
                             </div>
                           </HoverCard>
@@ -338,14 +371,14 @@ export default function CourseDetailPage() {
                 <div className="card p-6">
                   <h3 className="text-base font-semibold">Requirements</h3>
                   <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-                    {(course.requirements || ["A computer", "Internet access"]).map(
-                      (r, idx) => (
-                        <li key={idx} className="flex items-start gap-2.5">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
-                          {r}
-                        </li>
-                      )
-                    )}
+                    {(
+                      course.requirements || ["A computer", "Internet access"]
+                    ).map((r, idx) => (
+                      <li key={idx} className="flex items-start gap-2.5">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+                        {r}
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </FadeInUp>
@@ -354,7 +387,8 @@ export default function CourseDetailPage() {
                 <div className="card p-6 bg-primary/[0.03]">
                   <h3 className="text-base font-semibold">Ready to start?</h3>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Book a tutorial and select the exact modules you need help with.
+                    Book a tutorial and select the exact modules you need help
+                    with.
                   </p>
                   <Link className="btn-primary mt-4 w-full" to={bookUrl}>
                     Book tutorial

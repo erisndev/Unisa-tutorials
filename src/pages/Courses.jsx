@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FacultyAPI } from "../api/faculties";
 import { CourseAPI } from "../api/courses";
-import { faculties as fallbackFaculties, countModules } from "../lib/university";
+import {
+  faculties as fallbackFaculties,
+  countModules,
+} from "../lib/university";
 import {
   PageTransition,
   FadeIn,
@@ -30,7 +33,9 @@ function CourseCard({ faculty, course, moduleCount }) {
           </p>
 
           <div className="mt-4 flex items-center gap-2">
-            <span className="badge">{moduleCount} module{moduleCount !== 1 ? "s" : ""}</span>
+            <span className="badge">
+              {moduleCount} module{moduleCount !== 1 ? "s" : ""}
+            </span>
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -79,7 +84,7 @@ export default function CoursesPage() {
             } catch {
               return [f._id, []];
             }
-          })
+          }),
         );
         if (cancelled) return;
 
@@ -96,7 +101,7 @@ export default function CoursesPage() {
             } catch {
               modCounts[c._id] = 0;
             }
-          })
+          }),
         );
         if (cancelled) return;
         setModuleCountMap(modCounts);
@@ -108,7 +113,9 @@ export default function CoursesPage() {
     }
 
     fetchData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const allCourses = useMemo(() => {
@@ -146,7 +153,9 @@ export default function CoursesPage() {
       if (!query) return true;
 
       const courseTitle = course.title || course.name || "";
-      const hay = [faculty.name, courseTitle, course.description || ""].join(" ").toLowerCase();
+      const hay = [faculty.name, courseTitle, course.description || ""]
+        .join(" ")
+        .toLowerCase();
       return hay.includes(query);
     });
   }, [allCourses, facultyFilter, q]);
@@ -171,8 +180,8 @@ export default function CoursesPage() {
           </FadeInUp>
           <FadeInUp delay={0.2}>
             <p className="mt-4 max-w-3xl text-lg text-muted-foreground leading-relaxed">
-              Browse faculties and courses. Tutorials are booked per module — you
-              choose exactly what you need.
+              Browse faculties and courses. Tutorials are booked per module —
+              you choose exactly what you need.
             </p>
           </FadeInUp>
 
@@ -214,7 +223,9 @@ export default function CoursesPage() {
                 ) : (
                   <>
                     Showing{" "}
-                    <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+                    <span className="font-semibold text-foreground">
+                      {filtered.length}
+                    </span>{" "}
                     {filtered.length === 1 ? "course" : "courses"}
                   </>
                 )}
@@ -230,9 +241,6 @@ export default function CoursesPage() {
             <FadeIn>
               <div className="card p-12 text-center">
                 <h3 className="text-lg font-semibold">Loading courses...</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Fetching data from the server.
-                </p>
               </div>
             </FadeIn>
           ) : filtered.length === 0 ? (
@@ -247,7 +255,9 @@ export default function CoursesPage() {
           ) : (
             <StaggerOnMount className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map(({ faculty, course }) => (
-                <StaggerItem key={`${faculty._id || faculty.id}:${course._id || course.id}`}>
+                <StaggerItem
+                  key={`${faculty._id || faculty.id}:${course._id || course.id}`}
+                >
                   <CourseCard
                     faculty={faculty}
                     course={course}
