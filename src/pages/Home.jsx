@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { faculties, countModules } from "../lib/university";
+import { FacultyAPI } from "../api/faculties";
+import { faculties as fallbackFaculties, countModules } from "../lib/university";
 import {
   PageTransition,
   FadeIn,
@@ -10,17 +12,6 @@ import {
   StaggerItem,
   HoverCard,
 } from "../components/motion";
-
-const allCourses = faculties.flatMap((f) =>
-  f.courses.map((c) => ({ faculty: f, course: c }))
-);
-
-const stats = [
-  { value: `${faculties.length}`, label: "Faculties" },
-  { value: `${allCourses.length}+`, label: "Courses" },
-  { value: "4", label: "Package options" },
-  { value: "R150", label: "From / module" },
-];
 
 const features = [
   {
@@ -67,6 +58,66 @@ const testimonials = [
 ];
 
 export default function HomePage() {
+  const [apiFaculties, setApiFaculties] = useState(null);
+  const [apiCoursesMap, setApiCoursesMap] = useState({});
+
+  // Fetch faculties + their courses from API
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const facs = await FacultyAPI.list();
+        if (cancelled) return;
+        setApiFaculties(facs);
+
+        const entries = await Promise.all(
+          facs.map(async (f) => {
+            try {
+              const courses = await FacultyAPI.listCourses(f._id);
+              return [f._id, courses];
+            } catch {
+              return [f._id, []];
+            }
+          })
+        );
+        if (!cancelled) setApiCoursesMap(Object.fromEntries(entries));
+      } catch {
+        // Will use fallback
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const usingApi = apiFaculties !== null && apiFaculties.length > 0;
+
+  // Build allCourses: [{faculty, course}]
+  const allCourses = useMemo(() => {
+    if (usingApi) {
+      const rows = [];
+      for (const f of apiFaculties) {
+        for (const c of apiCoursesMap[f._id] || []) {
+          rows.push({ faculty: f, course: c });
+        }
+      }
+      return rows;
+    }
+    return fallbackFaculties.flatMap((f) =>
+      f.courses.map((c) => ({ faculty: f, course: c }))
+    );
+  }, [usingApi, apiFaculties, apiCoursesMap]);
+
+  const facultyCount = usingApi ? apiFaculties.length : fallbackFaculties.length;
+
+  const stats = [
+    { value: `${facultyCount}`, label: "Faculties" },
+    { value: `${allCourses.length}+`, label: "Courses" },
+    { value: "4", label: "Package options" },
+    { value: "R150", label: "From / module" },
+  ];
+
   const featured = allCourses.slice(0, 3);
 
   return (
@@ -194,32 +245,42 @@ export default function HomePage() {
           </FadeIn>
 
           <StaggerContainer className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map(({ faculty, course }) => (
-              <StaggerItem key={`${faculty.id}:${course.id}`}>
-                <HoverCard>
-                  <Link
-                    to={`/courses/${faculty.id}/${course.id}`}
-                    className="card-interactive block p-6"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="badge-primary">{course.level}</span>
-                      <span className="text-xs text-muted-foreground">{course.duration}</span>
-                    </div>
-                    <h3 className="mt-4 text-base font-semibold">{course.name}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{faculty.name}</p>
-                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                      {course.shortDescription}
-                    </p>
-                    <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="badge">{countModules(course)} modules</span>
-                    </div>
-                    <div className="mt-5 text-sm font-semibold text-primary">
-                      View modules →
-                    </div>
-                  </Link>
-                </HoverCard>
-              </StaggerItem>
-            ))}
+            {featured.map(({ faculty, course }) => {
+              const fKey = faculty._id || faculty.id;
+              const cKey = course._id || course.id;
+              const cTitle = course.title || course.name;
+              const cDesc = course.shortDescription || course.description || "";
+              const moduleCount = course.years ? countModules(course) : (course._moduleCount ?? 0);
+
+              return (
+                <StaggerItem key={`${fKey}:${cKey}`}>
+                  <HoverCard>
+                    <Link
+                      to={`/courses/${fKey}/${cKey}`}
+                      className="card-interactive block p-6"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="badge-primary">{course.level || "Undergraduate"}</span>
+                        <span className="text-xs text-muted-foreground">{course.duration || ""}</span>
+                      </div>
+                      <h3 className="mt-4 text-base font-semibold">{cTitle}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{faculty.name}</p>
+                      <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                        {cDesc}
+                      </p>
+                      {moduleCount > 0 && (
+                        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="badge">{moduleCount} modules</span>
+                        </div>
+                      )}
+                      <div className="mt-5 text-sm font-semibold text-primary">
+                        View modules →
+                      </div>
+                    </Link>
+                  </HoverCard>
+                </StaggerItem>
+              );
+            })}
           </StaggerContainer>
         </div>
       </section>

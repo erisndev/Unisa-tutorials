@@ -1,4 +1,16 @@
-export const packages = [
+/**
+ * university.js — Utility helpers for the Erisn UNISA Tut frontend.
+ *
+ * Static data (faculties, packages) is kept as a FALLBACK for when the
+ * backend is unreachable.  All pages should prefer fetching from the API
+ * and only fall back to these constants when the request fails.
+ */
+
+/* ══════════════════════════════════════════════════════════════
+   STATIC FALLBACK DATA
+   ══════════════════════════════════════════════════════════════ */
+
+export const fallbackPackages = [
   {
     id: "1v1",
     name: "1v1 (Lecture:Student)",
@@ -24,6 +36,9 @@ export const packages = [
     pricePerModule: 150,
   },
 ];
+
+// Keep the old export name so nothing breaks during migration
+export const packages = fallbackPackages;
 
 export const faculties = [
   {
@@ -528,7 +543,9 @@ export const faculties = [
   },
 ];
 
-/* ── helpers ── */
+/* ══════════════════════════════════════════════════════════════
+   HELPERS  (work with both static & API data)
+   ══════════════════════════════════════════════════════════════ */
 
 export function findFaculty(facultyId) {
   return faculties.find((f) => f.id === facultyId);

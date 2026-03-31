@@ -1,46 +1,48 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { faculties, countModules } from "../lib/university";
+import { FacultyAPI } from "../api/faculties";
+import { CourseAPI } from "../api/courses";
+import { faculties as fallbackFaculties, countModules } from "../lib/university";
 import {
   PageTransition,
   FadeIn,
   FadeInUp,
-  StaggerContainer,
   StaggerOnMount,
   StaggerItem,
   HoverCard,
 } from "../components/motion";
 
-function CourseCard({ faculty, course }) {
+function CourseCard({ faculty, course, moduleCount }) {
+  const facultyKey = faculty._id || faculty.id;
+  const courseKey = course._id || course.id;
+  const courseTitle = course.title || course.name;
+
   return (
     <HoverCard>
       <div className="card-interactive overflow-hidden h-full flex flex-col">
         <div className="p-6 flex-1 flex flex-col">
-          <div className="flex items-center justify-between gap-3">
-            <span className="badge-primary">{course.level}</span>
-            <span className="text-xs text-muted-foreground">{course.duration}</span>
-          </div>
+          <p className="text-xs font-medium text-primary">{faculty.name}</p>
 
-          <h3 className="mt-4 text-base font-semibold">{course.name}</h3>
-          <p className="mt-1 text-xs text-muted-foreground">{faculty.name}</p>
+          <h3 className="mt-2 text-base font-semibold">{courseTitle}</h3>
+
           <p className="mt-3 flex-1 text-sm text-muted-foreground leading-relaxed">
-            {course.shortDescription}
+            {course.shortDescription || course.description || ""}
           </p>
 
           <div className="mt-4 flex items-center gap-2">
-            <span className="badge">{countModules(course)} modules</span>
+            <span className="badge">{moduleCount} module{moduleCount !== 1 ? "s" : ""}</span>
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             <Link
               className="btn-primary text-xs px-3.5 py-2"
-              to={`/courses/${faculty.id}/${course.id}`}
+              to={`/courses/${facultyKey}/${courseKey}`}
             >
               View modules
             </Link>
             <Link
               className="btn-outline text-xs px-3.5 py-2"
-              to={`/book?faculty=${encodeURIComponent(faculty.id)}&course=${encodeURIComponent(course.id)}`}
+              to={`/book?faculty=${encodeURIComponent(facultyKey)}&course=${encodeURIComponent(courseKey)}`}
             >
               Book tutorial
             </Link>
@@ -52,53 +54,108 @@ function CourseCard({ faculty, course }) {
 }
 
 export default function CoursesPage() {
-  const [facultyId, setFacultyId] = useState("all");
-  const [level, setLevel] = useState("all");
+  const [apiFaculties, setApiFaculties] = useState(null);
+  const [apiCoursesMap, setApiCoursesMap] = useState({});
+  const [moduleCountMap, setModuleCountMap] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  const [facultyFilter, setFacultyFilter] = useState("all");
   const [q, setQ] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      try {
+        const facs = await FacultyAPI.list();
+        if (cancelled) return;
+        setApiFaculties(facs);
+
+        const courseEntries = await Promise.all(
+          facs.map(async (f) => {
+            try {
+              const courses = await FacultyAPI.listCourses(f._id);
+              return [f._id, courses];
+            } catch {
+              return [f._id, []];
+            }
+          })
+        );
+        if (cancelled) return;
+
+        const coursesMap = Object.fromEntries(courseEntries);
+        setApiCoursesMap(coursesMap);
+
+        const allCourses = Object.values(coursesMap).flat();
+        const modCounts = {};
+        await Promise.all(
+          allCourses.map(async (c) => {
+            try {
+              const mods = await CourseAPI.listModules(c._id);
+              modCounts[c._id] = Array.isArray(mods) ? mods.length : 0;
+            } catch {
+              modCounts[c._id] = 0;
+            }
+          })
+        );
+        if (cancelled) return;
+        setModuleCountMap(modCounts);
+      } catch {
+        setApiFaculties(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => { cancelled = true; };
+  }, []);
+
   const allCourses = useMemo(() => {
+    if (apiFaculties && apiFaculties.length > 0) {
+      const rows = [];
+      for (const f of apiFaculties) {
+        const courses = apiCoursesMap[f._id] || [];
+        for (const c of courses) {
+          rows.push({ faculty: f, course: c });
+        }
+      }
+      return rows;
+    }
+
     const rows = [];
-    for (const f of faculties) {
+    for (const f of fallbackFaculties) {
       for (const c of f.courses) {
         rows.push({ faculty: f, course: c });
       }
     }
     return rows;
-  }, []);
+  }, [apiFaculties, apiCoursesMap]);
+
+  const facultiesList = useMemo(() => {
+    if (apiFaculties && apiFaculties.length > 0) return apiFaculties;
+    return fallbackFaculties;
+  }, [apiFaculties]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return allCourses.filter(({ faculty, course }) => {
-      if (facultyId !== "all" && faculty.id !== facultyId) return false;
-      if (level !== "all" && String(course.level).toLowerCase() !== level) return false;
+      const fKey = faculty._id || faculty.id;
+      if (facultyFilter !== "all" && fKey !== facultyFilter) return false;
+
       if (!query) return true;
-      const moduleTexts = [];
-      for (const yr of course.years || []) {
-        for (const sem of yr.semesters) {
-          for (const m of sem.modules) {
-            moduleTexts.push(`${m.code} ${m.name}`);
-          }
-        }
-      }
-      const hay = [
-        faculty.name,
-        course.name,
-        course.shortDescription,
-        course.duration,
-        course.level,
-        ...moduleTexts,
-      ]
-        .join(" ")
-        .toLowerCase();
+
+      const courseTitle = course.title || course.name || "";
+      const hay = [faculty.name, courseTitle, course.description || ""].join(" ").toLowerCase();
       return hay.includes(query);
     });
-  }, [allCourses, facultyId, level, q]);
+  }, [allCourses, facultyFilter, q]);
 
-  const levels = useMemo(() => {
-    const set = new Set();
-    for (const { course } of allCourses) set.add(String(course.level).toLowerCase());
-    return ["all", ...Array.from(set)];
-  }, [allCourses]);
+  const getModuleCount = (course) => {
+    const cid = course._id || course.id;
+    if (moduleCountMap[cid] !== undefined) return moduleCountMap[cid];
+    return course._moduleCount ?? countModules(course);
+  };
 
   return (
     <PageTransition>
@@ -119,19 +176,18 @@ export default function CoursesPage() {
             </p>
           </FadeInUp>
 
-          {/* Filters */}
           <FadeInUp delay={0.3}>
             <div className="mt-8 card p-5">
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Search
+                    Search courses
                   </label>
                   <input
                     className="input mt-1.5"
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search courses, modules, codes (e.g., CS101) ..."
+                    placeholder="Search by course name..."
                   />
                 </div>
                 <div>
@@ -140,38 +196,28 @@ export default function CoursesPage() {
                   </label>
                   <select
                     className="input mt-1.5"
-                    value={facultyId}
-                    onChange={(e) => setFacultyId(e.target.value)}
+                    value={facultyFilter}
+                    onChange={(e) => setFacultyFilter(e.target.value)}
                   >
                     <option value="all">All faculties</option>
-                    {faculties.map((f) => (
-                      <option key={f.id} value={f.id}>
+                    {facultiesList.map((f) => (
+                      <option key={f._id || f.id} value={f._id || f.id}>
                         {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Level
-                  </label>
-                  <select
-                    className="input mt-1.5"
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                  >
-                    {levels.map((lv) => (
-                      <option key={lv} value={lv}>
-                        {lv === "all" ? "All levels" : lv[0].toUpperCase() + lv.slice(1)}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className="mt-3 text-sm text-muted-foreground">
-                Showing{" "}
-                <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
-                {filtered.length === 1 ? "course" : "courses"}
+                {loading ? (
+                  "Loading courses..."
+                ) : (
+                  <>
+                    Showing{" "}
+                    <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+                    {filtered.length === 1 ? "course" : "courses"}
+                  </>
+                )}
               </div>
             </div>
           </FadeInUp>
@@ -180,10 +226,18 @@ export default function CoursesPage() {
 
       <section className="section">
         <div className="container">
-          {filtered.length === 0 ? (
+          {loading ? (
             <FadeIn>
               <div className="card p-12 text-center">
-                <div className="text-4xl mb-4">🔍</div>
+                <h3 className="text-lg font-semibold">Loading courses...</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Fetching data from the server.
+                </p>
+              </div>
+            </FadeIn>
+          ) : filtered.length === 0 ? (
+            <FadeIn>
+              <div className="card p-12 text-center">
                 <h3 className="text-lg font-semibold">No courses found</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Try adjusting your filters or search term.
@@ -193,8 +247,12 @@ export default function CoursesPage() {
           ) : (
             <StaggerOnMount className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map(({ faculty, course }) => (
-                <StaggerItem key={`${faculty.id}:${course.id}`}>
-                  <CourseCard faculty={faculty} course={course} />
+                <StaggerItem key={`${faculty._id || faculty.id}:${course._id || course.id}`}>
+                  <CourseCard
+                    faculty={faculty}
+                    course={course}
+                    moduleCount={getModuleCount(course)}
+                  />
                 </StaggerItem>
               ))}
             </StaggerOnMount>

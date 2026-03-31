@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "./theme-provider";
 
@@ -7,7 +7,6 @@ const navItems = [
   { to: "/about", label: "About" },
   { to: "/courses", label: "Courses" },
   { to: "/team", label: "Our Team" },
-  { to: "/book", label: "Book Tutorial" },
   { to: "/contact", label: "Contact" },
 ];
 
@@ -74,13 +73,13 @@ function ThemeToggle() {
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   const linkClass = ({ isActive }) =>
     [
       "relative text-sm font-medium transition-colors duration-200",
-      isActive
-        ? "text-primary"
-        : "text-muted-foreground hover:text-foreground",
+      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
     ].join(" ");
 
   return (
@@ -98,37 +97,43 @@ export function Navbar() {
           </span>
           <div className="leading-tight">
             <div className="text-sm font-bold tracking-tight">Erisn</div>
-            <div className="text-[11px] text-muted-foreground">UNISA Tutorials</div>
+            <div className="text-[11px] text-muted-foreground">
+              UNISA Tutorials
+            </div>
           </div>
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                [
-                  "relative rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "text-primary bg-primary/5"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                ].join(" ")
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        {!isAdminRoute && (
+          <nav className="hidden items-center gap-1 md:flex">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  [
+                    "relative rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "text-primary bg-primary/5"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                  ].join(" ")
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         {/* CTA + theme toggle + hamburger */}
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
 
-          <Link to="/book" className="btn-primary hidden sm:inline-flex">
-            Book Tutorial
-          </Link>
+          {!isAdminRoute && (
+            <Link to="/book" className="btn-primary hidden sm:inline-flex">
+              Book Tutorial
+            </Link>
+          )}
 
           <button
             onClick={() => setMobileOpen((v) => !v)}
@@ -167,7 +172,7 @@ export function Navbar() {
 
       {/* Mobile nav */}
       <AnimatePresence>
-        {mobileOpen && (
+        {mobileOpen && !isAdminRoute && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
